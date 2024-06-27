@@ -1,12 +1,78 @@
-import { Image, StyleSheet, Text, View } from "react-native";
-import React from "react";
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
 import { useRoute } from "@react-navigation/native";
 import { AntDesign } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 const OrchidDetailScreen = () => {
   const route = useRoute();
-  const { item } = route.params;
+  const { item: initialItem } = route.params;
+  const [item, setItem] = useState(initialItem);
+  const [isFavorite, setIsFavorite] = useState(item.isFavorite);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // useEffect(() => {
+  //   setIsFavorite(item.isFavorite);
+  // }, [item.isFavorite]);
+  
+
+
+  const fetchUpdatedItem = async () => {
+
+    const updatedItem = {
+      ...initialItem,
+      isFavorite: !initialItem.isFavorite 
+    };
+    return updatedItem;
+  };
+
+  console.log("ITEM: ", item);
+
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchUpdatedItem();
+    setRefreshing(false);
+  };
+
+
+
+
+  const saveFavoriteOrchid = async (orchid) => {
+    try {
+      const favorites = await AsyncStorage.getItem("favorites");
+      let favoritesArray = favorites ? JSON.parse(favorites) : [];
+
+      let isFavorite =
+        orchid && orchid.name
+          ? favoritesArray.some((favorite) => favorite && favorite.name === orchid.name)
+          : false;
+
+      if (isFavorite) {
+        favoritesArray = favoritesArray.filter(
+          (favorite) => favorite.name !== orchid.name
+        );
+      } else {
+        orchid.isFavorite = true;
+        favoritesArray.push(orchid);
+      }
+
+      await AsyncStorage.setItem("favorites", JSON.stringify(favoritesArray));
+      item.isFavorite = !isFavorite;
+
+    } catch (error) {
+      console.error("Error saving favorite orchid:", error);
+    }
+  };
 
   return (
+    <ScrollView
+    contentContainerStyle={styles.container}
+    refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+    }
+  >
     <View style={styles.container}>
       <View style={styles.body}>
         <Image
@@ -17,6 +83,13 @@ const OrchidDetailScreen = () => {
         <Text style={{ fontSize: 26, textAlign: "center", color: "#E74C3C" }}>
           {item.name}
         </Text>
+        <TouchableOpacity onPress={() => saveFavoriteOrchid(item)}>
+          <MaterialIcons
+            name={item.isFavorite ? "favorite" : "favorite-border"}
+            size={24}
+            color="red"
+          />
+        </TouchableOpacity>
         <View style={styles.infoContainer}>
           <View style={styles.infoLeft}>
             <Text style={styles.textInfo}>Origin: {item.origin}</Text>
@@ -37,6 +110,7 @@ const OrchidDetailScreen = () => {
         </View>
       </View>
     </View>
+    </ScrollView>
   );
 };
 

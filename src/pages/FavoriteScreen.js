@@ -23,9 +23,8 @@ const FavoriteScreen = () => {
         const storedFavorites = await AsyncStorage.getItem('favorites');
         if (storedFavorites) {
           const parsedFavorites = JSON.parse(storedFavorites);
-          const validFavorites = parsedFavorites.filter(fav => fav && fav.name);
+          const validFavorites = parsedFavorites.filter(favorite => favorite && favorite.isFavorite);
           setFavorites(validFavorites);
-
         }
       } catch (error) {
         console.error("Error loading favorites: ", error);
@@ -38,18 +37,14 @@ const FavoriteScreen = () => {
     const unsubscribe = navigate.addListener("focus", () => {
       loadFavorites();
     });
-    // Call favoritesData initially to load data when component mounts
     loadFavorites();
-    // Cleanup the event listener on component unmount
     return unsubscribe;
   }, [navigate]);
 
-  
+  console.log("FAVORITE: ", favorites);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // const storedFavorites = await AsyncStorage.getItem('favorites');
-    // setFavorites(storedFavorites ? JSON.parse(storedFavorites) : []);
     loadFavorites();
     setRefreshing(false);
   };
@@ -94,7 +89,7 @@ const FavoriteScreen = () => {
           text: "Remove",
           onPress: async () => {
             try {
-              const updatedFavorites = favorites.filter(fav => fav && fav.name !== item.name);
+              const updatedFavorites = favorites.filter(favorite => favorite && favorite.name !== item.name);
               await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
               setFavorites(updatedFavorites);
             } catch (error) {

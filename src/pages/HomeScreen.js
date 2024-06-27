@@ -11,59 +11,101 @@ import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
+
 const HomeScreen = () => {
   const [orchids, setOrchids] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigation();
+
   const fetchDataOrchids = async () => {
     try {
-      const response = await axios.get(
+      const response = await fetch(
         "https://667a6d77bd627f0dcc8ee044.mockapi.io/api/v1/categories"
       );
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      
       const favorites = await AsyncStorage.getItem("favorites");
       const favoritesArray = favorites ? JSON.parse(favorites) : [];
-      const formattedData = response.data.map((category) => ({
+      
+      const formattedData = data.map((category) => ({
         title: category.name,
         data: Array.isArray(category.items)
           ? category.items.map((item) => ({
               ...item,
               isFavorite: favoritesArray.some(
-                (fav) => fav && fav.name === item.name
+                (favorite) => favorite && favorite.name === item.name
               ),
             }))
           : [],
       }));
+
+      formattedData.forEach(category => {
+        console.log("Category Data: ", category.data);
+      });
+      
       setOrchids(formattedData);
+   
     } catch (error) {
       console.error("Error fetching data: ", error);
       setOrchids([]);
     }
   };
+  
+  
+  // const fetchDataOrchids = async () => {
+  //   try {
+  //     const response = await axios.get(
+  //       "https://667a6d77bd627f0dcc8ee044.mockapi.io/api/v1/categories"
+  //     );
+  //     const favorites = await AsyncStorage.getItem("favorites");
+  //     const favoritesArray = favorites ? JSON.parse(favorites) : [];
+  //     const formattedData = response.data.map((category) => ({
+  //       title: category.name,
+  //       data: Array.isArray(category.items)
+  //         ? category.items.map((item) => ({
+  //             ...item,
+  //             isFavorite: favoritesArray.some(
+  //               (favorite) => favorite && favorite.name === item.name
+  //             ),
+  //           }))
+  //         : [],
+  //     }));
+  //     setOrchids(formattedData);
+  //   } catch (error) {
+  //     console.error("Error fetching data: ", error);
+  //     setOrchids([]);
+  //   }
+  // };
+
+  // console.log("ORCHIDS: ", orchids);
+
   const saveFavoriteOrchid = async (orchid) => {
     try {
       const favorites = await AsyncStorage.getItem("favorites");
       let favoritesArray = favorites ? JSON.parse(favorites) : [];
 
-      // Check if orchid is defined and has a name property
       let isFavorite =
         orchid && orchid.name
-          ? favoritesArray.some((fav) => fav && fav.name === orchid.name)
+          ? favoritesArray.some((favorite) => favorite && favorite.name === orchid.name)
           : false;
 
       if (isFavorite) {
         favoritesArray = favoritesArray.filter(
-          (fav) => fav.name !== orchid.name
+          (favorite) => favorite.name !== orchid.name
         );
       } else {
+        orchid.isFavorite = true;
         favoritesArray.push(orchid);
       }
 
       await AsyncStorage.setItem("favorites", JSON.stringify(favoritesArray));
 
-      // Update orchids state to reflect changes
-      const updatedOrchids = orchids.map((section) => ({
-        ...section,
-        data: section.data.map((item) => ({
+      const updatedOrchids = orchids.map((orchids) => ({
+        ...orchids,
+        data: orchids.data.map((item) => ({
           ...item,
           isFavorite: item.name === orchid.name ? !isFavorite : item.isFavorite,
         })),
@@ -78,6 +120,14 @@ const HomeScreen = () => {
   useEffect(() => {
     fetchDataOrchids();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigate.addListener("focus", () => {
+      fetchDataOrchids();
+    });
+    fetchDataOrchids();
+    return unsubscribe;
+  }, [navigate]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
